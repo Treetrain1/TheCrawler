@@ -1,11 +1,17 @@
 package net.frozenblock.crawler.entity;
 
+import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Dynamic;
 import net.frozenblock.crawler.entity.ai.CrawlerBrain;
+import net.frozenblock.crawler.registry.RegisterEntities;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.*;
+import net.minecraft.entity.ai.brain.Activity;
 import net.minecraft.entity.ai.brain.Brain;
+import net.minecraft.entity.ai.brain.LivingTargetCache;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
+import net.minecraft.entity.ai.brain.sensor.Sensor;
+import net.minecraft.entity.ai.brain.sensor.SensorType;
 import net.minecraft.entity.ai.brain.task.UpdateAttackTargetTask;
 import net.minecraft.entity.ai.pathing.PathNodeType;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
@@ -13,12 +19,14 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.ProjectileDamageSource;
 import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.entity.mob.Monster;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.DebugInfoSender;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.LocalDifficulty;
 import net.minecraft.world.ServerWorldAccess;
@@ -26,7 +34,9 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import org.jetbrains.annotations.Nullable;
 
-public class Crawler extends HostileEntity {
+import java.util.Optional;
+
+public class Crawler extends HostileEntity implements Monster {
 
     public Crawler(EntityType<? extends HostileEntity> entityType, World world) {
         super(entityType, world);
@@ -85,13 +95,24 @@ public class Crawler extends HostileEntity {
         super.tick();
     }
 
+    protected void tickBrain() {
+        Activity activity = this.brain.getFirstPossibleNonCoreActivity().orElse(null);
+        this.brain.resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
+        Activity activity2 = this.brain.getFirstPossibleNonCoreActivity().orElse(null);
+        if (activity2 == Activity.FIGHT && activity != Activity.FIGHT) {
+            this.playAngrySound();
+        }
+
+        this.setAttacking(this.brain.hasMemoryModule(MemoryModuleType.ATTACK_TARGET));
+    }
+
     @Override
     public void mobTick() {
         ServerWorld serverWorld = (ServerWorld) this.world;
         serverWorld.getProfiler().push("crawlerBrain");
         this.getBrain().tick(serverWorld, this);
         this.world.getProfiler().pop();
-        super.mobTick();
+        this.tickBrain();
     }
 
     @Override
@@ -138,7 +159,7 @@ public class Crawler extends HostileEntity {
     @Override
     public void handleStatus(byte status) {
         if (status == EntityStatuses.PLAY_ATTACK_SOUND) {
-            //this.playSound(RegisterSounds.ENTITY_CRAWLER_ATTACK, 1.0F, this.getSoundPitch());
+            this.playSound(SoundEvents.ENTITY_WARDEN_ATTACK_IMPACT, 1.0F, this.getSoundPitch());
         } else {
             super.handleStatus(status);
         }
@@ -179,7 +200,20 @@ public class Crawler extends HostileEntity {
 
     @Override
     protected void playStepSound(BlockPos pos, BlockState state) {
-        //this.playSound(SoundEvents.ENTITY_CRAWLER_STEP, 1.0F, 1.0F);
-        super.playStepSound(pos, state);
+        this.playSound(SoundEvents.ENTITY_WARDEN_STEP, 1.0F, 1.0F);
     }
+
+    protected void playAngrySound() {
+        this.playSound(SoundEvents.ENTITY_WARDEN_ANGRY, 1.0F, this.getSoundPitch());
+    }
+
+    public Optional<? extends LivingEntity> getCrawlerTarget() {
+        return (this.getBrain().getOptionalMemory(MemoryModuleType.VISIBLE_MOBS).orElse(LivingTargetCache.empty()).findFirst(this::shouldAttack));
+    }
+
+    public boolean shouldAttack(LivingEntity entity) {
+        EntityType<?> entityType = entity.getType();
+        return entityType == EntityType.PLAYER && Sensor.testAttackableTargetPredicate(this, entity);
+    }
+
 }

@@ -8,14 +8,18 @@ import net.frozenblock.crawler.entity.Crawler;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.Activity;
 import net.minecraft.entity.ai.brain.Brain;
+import net.minecraft.entity.ai.brain.LivingTargetCache;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.sensor.Sensor;
 import net.minecraft.entity.ai.brain.sensor.SensorType;
 import net.minecraft.entity.ai.brain.task.*;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.mob.HoglinEntity;
 import net.minecraft.entity.mob.WardenEntity;
+import net.minecraft.util.math.intprovider.UniformIntProvider;
 
 import java.util.List;
+import java.util.Optional;
 
 public class CrawlerBrain {
 
@@ -57,14 +61,15 @@ public class CrawlerBrain {
     }
 
     private static void addIdleActivities(Brain<Crawler> brain) {
-        brain.setTaskList(Activity.IDLE, 10, ImmutableList.of(new RandomTask<>(ImmutableList.of(Pair.of(new StrollTask(0.5F), 2), Pair.of(new WaitTask(30, 60), 1)))));
+        brain.setTaskList(Activity.IDLE, 10, ImmutableList.of(new UpdateAttackTargetTask<>(Crawler::getCrawlerTarget), new TimeLimitedTask<>(new FollowMobTask(16.0F), UniformIntProvider.create(30, 60)), new RandomTask<>(ImmutableList.of(Pair.of(new StrollTask(0.4F), 2), Pair.of(new GoTowardsLookTarget(0.4F, 3), 2), Pair.of(new WaitTask(30, 60), 1)))));
     }
 
     private static void addFightActivities(Crawler crawler, Brain<Crawler> brain) {
-        brain.setTaskList(Activity.FIGHT, 10, ImmutableList.of(new ForgetAttackTargetTask<>(), new FollowMobTask(entity -> isTargeting(crawler, entity), (float)crawler.getAttributeValue(EntityAttributes.GENERIC_FOLLOW_RANGE)), new RangedApproachTask(1.2F), new MeleeAttackTask(18)), MemoryModuleType.ATTACK_TARGET);
+        brain.setTaskList(Activity.FIGHT, 10, ImmutableList.of(new RangedApproachTask(1.2F), new MeleeAttackTask(18), new ForgetAttackTargetTask<>()), MemoryModuleType.ATTACK_TARGET);
     }
 
     private static boolean isTargeting(Crawler crawler, LivingEntity entity) {
         return crawler.getBrain().getOptionalMemory(MemoryModuleType.ATTACK_TARGET).filter(entityx -> entityx == entity).isPresent();
     }
+
 }
