@@ -12,7 +12,7 @@ import net.minecraft.util.registry.Registry;
 
 public class RegisterEntities {
 
-    public static final EntityType<Crawler> CRAWLER = Registry.register(Registry.ENTITY_TYPE, new Identifier(TheCrawler.MOD_ID, "crawler"), FabricEntityTypeBuilder.createMob().spawnGroup(SpawnGroup.MONSTER).entityFactory(Crawler::new).dimensions(EntityDimensions.fixed(1.7F, 2.8F)).trackRangeBlocks(16).fireImmune().defaultAttributes(Crawler::addAttributes).build());
+    public static final EntityType<Crawler> CRAWLER = Registry.register(Registry.ENTITY_TYPE, new Identifier(TheCrawler.MOD_ID, "crawler"), FabricEntityTypeBuilder.createMob().spawnGroup(SpawnGroup.MONSTER).entityFactory(Crawler::new).dimensions(EntityDimensions.fixed(1.7F, 2.8F)).fireImmune().defaultAttributes(Crawler::addAttributes).build());
 
     public static void init() {
 
