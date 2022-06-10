@@ -1,6 +1,7 @@
 package net.frozenblock.crawler;
 
 import net.fabricmc.api.ModInitializer;
+import net.frozenblock.crawler.registry.RegisterEntities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,5 +20,6 @@ public class TheCrawler implements ModInitializer {
 		// Proceed with mild caution.
 
 		LOGGER.info("The Crawler Mod is initializing");
+		RegisterEntities.init();
 	}
 }
