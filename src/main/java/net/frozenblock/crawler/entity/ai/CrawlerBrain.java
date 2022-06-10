@@ -5,19 +5,24 @@ import com.google.common.collect.ImmutableSet;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Dynamic;
 import net.frozenblock.crawler.entity.CrawlerEntity;
+import net.frozenblock.crawler.entity.ai.task.CrawlerDigTask;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.Activity;
 import net.minecraft.entity.ai.brain.Brain;
+import net.minecraft.entity.ai.brain.MemoryModuleState;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.sensor.Sensor;
 import net.minecraft.entity.ai.brain.sensor.SensorType;
 import net.minecraft.entity.ai.brain.task.*;
-import net.minecraft.entity.mob.WardenEntity;
+import net.minecraft.util.Unit;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 
 import java.util.List;
 
 public class CrawlerBrain {
+
+    private static final int DIG_DURATION = MathHelper.ceil(50.0F);
 
     private static final List<SensorType<? extends Sensor<? super CrawlerEntity>>> SENSORS = List.of(SensorType.NEAREST_LIVING_ENTITIES, SensorType.NEAREST_PLAYERS);
     private static final List<MemoryModuleType<?>> MEMORY_MODULES = List.of(
@@ -33,8 +38,8 @@ public class CrawlerBrain {
             MemoryModuleType.ATTACK_COOLING_DOWN
     );
 
-    public static void updateActivities(WardenEntity warden) {
-        warden.getBrain()
+    public static void updateActivities(CrawlerEntity crawler) {
+        crawler.getBrain()
                 .resetPossibleActivities(
                         ImmutableList.of(Activity.FIGHT, Activity.IDLE)
                 );
@@ -44,6 +49,7 @@ public class CrawlerBrain {
         Brain.Profile<CrawlerEntity> profile = Brain.createProfile(MEMORY_MODULES, SENSORS);
         Brain<CrawlerEntity> brain = profile.deserialize(dynamic);
         addCoreActivities(brain);
+        addDigActivities(brain);
         addIdleActivities(brain);
         addFightActivities(crawler, brain);
         brain.setCoreActivities(ImmutableSet.of(Activity.CORE));
@@ -56,12 +62,28 @@ public class CrawlerBrain {
         brain.setTaskList(Activity.CORE, 0, ImmutableList.of(new LookAroundTask(45, 90), new WanderAroundTask()));
     }
 
+    private static void addDigActivities(Brain<CrawlerEntity> brain) {
+        brain.setTaskList(
+                Activity.DIG,
+                ImmutableList.of(Pair.of(0, new DismountVehicleTask()), Pair.of(1, new CrawlerDigTask<>(DIG_DURATION))),
+                ImmutableSet.of(
+                        Pair.of(MemoryModuleType.DIG_COOLDOWN, MemoryModuleState.VALUE_ABSENT)
+                )
+        );
+    }
+
     private static void addIdleActivities(Brain<CrawlerEntity> brain) {
         brain.setTaskList(Activity.IDLE, 10, ImmutableList.of(new UpdateAttackTargetTask<>(CrawlerEntity::getCrawlerTarget), new TimeLimitedTask<>(new FollowMobTask(16.0F), UniformIntProvider.create(30, 60)), new RandomTask<>(ImmutableList.of(Pair.of(new StrollTask(0.4F), 2), Pair.of(new GoTowardsLookTarget(0.4F, 3), 2), Pair.of(new WaitTask(30, 60), 1)))));
     }
 
     private static void addFightActivities(CrawlerEntity crawler, Brain<CrawlerEntity> brain) {
         brain.setTaskList(Activity.FIGHT, 10, ImmutableList.of(new RangedApproachTask(1.0F), new MeleeAttackTask(18), new ForgetAttackTargetTask<>()), MemoryModuleType.ATTACK_TARGET);
+    }
+
+    public static void resetDigCooldown(LivingEntity crawler) {
+        if (crawler.getBrain().hasMemoryModule(MemoryModuleType.DIG_COOLDOWN)) {
+            crawler.getBrain().remember(MemoryModuleType.DIG_COOLDOWN, Unit.INSTANCE, 300L);
+        }
     }
 
 }

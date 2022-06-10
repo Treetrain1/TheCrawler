@@ -3,6 +3,7 @@ package net.frozenblock.crawler.entity;
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Dynamic;
 import net.frozenblock.crawler.entity.ai.CrawlerBrain;
+import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.brain.Activity;
@@ -16,16 +17,21 @@ import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.ProjectileDamageSource;
+import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.Monster;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.DebugInfoSender;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.world.LocalDifficulty;
 import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
@@ -35,6 +41,10 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Optional;
 
 public class CrawlerEntity extends HostileEntity {
+
+    public AnimationState emergingAnimationState = new AnimationState();
+    public AnimationState diggingAnimationState = new AnimationState();
+
 
     public CrawlerEntity(EntityType<? extends HostileEntity> entityType, World world) {
         super(entityType, world);
@@ -54,8 +64,27 @@ public class CrawlerEntity extends HostileEntity {
     }
 
     @Override
+    public boolean isInvulnerableTo(DamageSource source) {
+        return this.isDiggingOrEmerging() && !source.isOutOfWorld() || super.isInvulnerableTo(source);
+    }
+
+    private boolean isDiggingOrEmerging() {
+        return this.isInPose(EntityPose.DIGGING) || this.isInPose(EntityPose.EMERGING);
+    }
+
+    @Override
+    protected boolean canStartRiding(Entity entity) {
+        return false;
+    }
+
+    @Override
     public boolean disablesShield() {
         return true;
+    }
+
+    @Override
+    protected float calculateNextStepSoundDistance() {
+        return this.distanceTraveled + 0.55F;
     }
 
     public static DefaultAttributeContainer.Builder addAttributes() {
@@ -74,7 +103,7 @@ public class CrawlerEntity extends HostileEntity {
 
     @Override
     protected float getSoundVolume() {
-        return 1.5F;
+        return 3.0F;
     }
 
     @Override
@@ -89,8 +118,22 @@ public class CrawlerEntity extends HostileEntity {
 
     @Override
     public void tick() {
+        World crawlerWorld = this.world;
+        if (crawlerWorld instanceof ServerWorld serverWorld) {
+            if (this.isPersistent() || this.cannotDespawn()) {
+                CrawlerBrain.resetDigCooldown(this);
+            }
+        }
 
         super.tick();
+        if (this.world.isClient()) {
+            switch (this.getPose()) {
+                case EMERGING:
+                    this.addDigParticles(this.emergingAnimationState);
+                case DIGGING:
+                    this.addDigParticles(this.diggingAnimationState);
+            }
+        }
     }
 
     protected void tickBrain() {
@@ -102,6 +145,7 @@ public class CrawlerEntity extends HostileEntity {
         }
 
         this.setAttacking(this.brain.hasMemoryModule(MemoryModuleType.ATTACK_TARGET));
+        CrawlerBrain.updateActivities(this);
     }
 
     @Override
@@ -142,12 +186,25 @@ public class CrawlerEntity extends HostileEntity {
     }
 
     @Override
+    public EntityDimensions getDimensions(EntityPose pose) {
+        EntityDimensions entityDimensions = super.getDimensions(pose);
+        return this.isDiggingOrEmerging() ? EntityDimensions.fixed(entityDimensions.width, 1.0F) : entityDimensions;
+    }
+
+    @Override
+    public boolean isPushable() {
+        return !this.isDiggingOrEmerging() && super.isPushable();
+    }
+
+    @Override
     public boolean damage(DamageSource source, float amount) {
         boolean bl = super.damage(source, amount);
         if (!this.world.isClient && !this.isAiDisabled()) {
             Entity entity = source.getAttacker();
-            if (this.brain.getOptionalMemory(MemoryModuleType.ATTACK_TARGET).isEmpty() && entity instanceof LivingEntity livingEntity && (!(source instanceof ProjectileDamageSource) || this.isInRange(livingEntity, 5.0))) {
-                this.updateAttackTarget(livingEntity);
+            if (this.brain.getOptionalMemory(MemoryModuleType.ATTACK_TARGET).isEmpty()
+                && entity instanceof LivingEntity livingEntity
+                && (!(source instanceof ProjectileDamageSource) || this.isInRange(livingEntity, 3.0))) {
+                    this.updateAttackTarget(livingEntity);
             }
         }
 
@@ -161,6 +218,38 @@ public class CrawlerEntity extends HostileEntity {
         } else {
             super.handleStatus(status);
         }
+    }
+
+    private void addDigParticles(AnimationState animationState) {
+        if ((float)animationState.getTimeRunning() < 4500.0F) {
+            Random random = this.getRandom();
+            BlockState blockState = this.getSteppingBlockState();
+            if (blockState.getRenderType() != BlockRenderType.INVISIBLE) {
+                for(int i = 0; i < 30; ++i) {
+                    double d = this.getX() + (double) MathHelper.nextBetween(random, -0.7F, 0.7F);
+                    double e = this.getY();
+                    double f = this.getZ() + (double)MathHelper.nextBetween(random, -0.7F, 0.7F);
+                    this.world.addParticle(new BlockStateParticleEffect(ParticleTypes.BLOCK, blockState), d, e, f, 0.0, 0.0, 0.0);
+                }
+            }
+        }
+
+    }
+
+    @Override
+    public void onTrackedDataSet(TrackedData<?> data) {
+        if (POSE.equals(data)) {
+            switch(this.getPose()) {
+                case EMERGING:
+                    this.emergingAnimationState.start(this.age);
+                    break;
+                case DIGGING:
+                    this.diggingAnimationState.start(this.age);
+                    break;
+            }
+        }
+
+        super.onTrackedDataSet(data);
     }
 
     public void updateAttackTarget(LivingEntity target) {
