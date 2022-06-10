@@ -1,25 +1,26 @@
 {
   "schemaVersion": 1,
-  "id": "modid",
+  "id": "crawler",
   "version": "${version}",
 
-  "name": "Example Mod",
+  "name": "The Crawler",
   "description": "This is an example description! Tell everyone what your mod is about!",
   "authors": [
     "Me!"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "https://github.com/Treetrain1/TheCrawler",
+    "issues": "https://github.com/Treetrain1/TheCrawler",
+    "sources": "https://github.com/Treetrain1/TheCrawler"
   },
 
   "license": "CC0-1.0",
-  "icon": "assets/modid/icon.png",
+  "icon": "assets/crawler/icon.png",
 
   "environment": "*",
   "entrypoints": {
     "main": [
-      "net.fabricmc.example.ExampleMod"
+      "net.frozenblock.crawler.TheCrawler"
     ]
   },
   "mixins": [
