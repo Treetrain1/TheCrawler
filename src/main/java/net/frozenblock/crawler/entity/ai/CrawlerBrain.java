@@ -61,11 +61,7 @@ public class CrawlerBrain {
     }
 
     private static void addFightActivities(CrawlerEntity crawler, Brain<CrawlerEntity> brain) {
-        brain.setTaskList(Activity.FIGHT, 10, ImmutableList.of(new RangedApproachTask(1.2F), new MeleeAttackTask(18), new ForgetAttackTargetTask<>()), MemoryModuleType.ATTACK_TARGET);
-    }
-
-    private static boolean isTargeting(CrawlerEntity crawler, LivingEntity entity) {
-        return crawler.getBrain().getOptionalMemory(MemoryModuleType.ATTACK_TARGET).filter(entityx -> entityx == entity).isPresent();
+        brain.setTaskList(Activity.FIGHT, 10, ImmutableList.of(new RangedApproachTask(1.0F), new MeleeAttackTask(18), new ForgetAttackTargetTask<>()), MemoryModuleType.ATTACK_TARGET);
     }
 
 }
