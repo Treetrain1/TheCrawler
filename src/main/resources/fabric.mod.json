@@ -21,6 +21,9 @@
   "entrypoints": {
     "main": [
       "net.frozenblock.crawler.TheCrawler"
+    ],
+    "client": [
+      "net.frozenblock.crawler.TheCrawlerClient"
     ]
   },
   "mixins": [
