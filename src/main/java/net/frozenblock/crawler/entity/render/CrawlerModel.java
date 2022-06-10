@@ -1,19 +1,16 @@
 package net.frozenblock.crawler.entity.render;
 
-import com.google.common.collect.ImmutableList;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.frozenblock.crawler.entity.Crawler;
+import net.frozenblock.crawler.entity.CrawlerEntity;
 import net.minecraft.client.model.*;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.entity.model.EntityModelPartNames;
 import net.minecraft.client.render.entity.model.SinglePartEntityModel;
 import net.minecraft.util.math.MathHelper;
 
-import java.util.List;
-
 @Environment(EnvType.CLIENT)
-public class CrawlerModel<T extends Crawler> extends SinglePartEntityModel<T> {
+public class CrawlerModel<T extends CrawlerEntity> extends SinglePartEntityModel<T> {
     private static final float field_38324 = 13.0F;
     private static final float field_38325 = 1.0F;
     private final ModelPart root;

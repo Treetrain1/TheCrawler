@@ -4,13 +4,13 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.frozenblock.crawler.TheCrawler;
 import net.frozenblock.crawler.TheCrawlerClient;
-import net.frozenblock.crawler.entity.Crawler;
+import net.frozenblock.crawler.entity.CrawlerEntity;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.MobEntityRenderer;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
-public class CrawlerRenderer extends MobEntityRenderer<Crawler, CrawlerModel<Crawler>> {
+public class CrawlerRenderer extends MobEntityRenderer<CrawlerEntity, CrawlerModel<CrawlerEntity>> {
 
     private static final Identifier TEXTURE = new Identifier(TheCrawler.MOD_ID, "textures/entity/crawler/crawler.png");
 
@@ -18,7 +18,7 @@ public class CrawlerRenderer extends MobEntityRenderer<Crawler, CrawlerModel<Cra
         super(context, new CrawlerModel<>(context.getPart(TheCrawlerClient.CRAWLER)), 0.9F);
     }
 
-    public Identifier getTexture(Crawler crawler) {
+    public Identifier getTexture(CrawlerEntity crawler) {
         return TEXTURE;
     }
 }

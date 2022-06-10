@@ -3,7 +3,6 @@ package net.frozenblock.crawler.entity;
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Dynamic;
 import net.frozenblock.crawler.entity.ai.CrawlerBrain;
-import net.frozenblock.crawler.registry.RegisterEntities;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.brain.Activity;
@@ -11,7 +10,6 @@ import net.minecraft.entity.ai.brain.Brain;
 import net.minecraft.entity.ai.brain.LivingTargetCache;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.sensor.Sensor;
-import net.minecraft.entity.ai.brain.sensor.SensorType;
 import net.minecraft.entity.ai.brain.task.UpdateAttackTargetTask;
 import net.minecraft.entity.ai.pathing.PathNodeType;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
@@ -36,9 +34,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
-public class Crawler extends HostileEntity implements Monster {
+public class CrawlerEntity extends HostileEntity {
 
-    public Crawler(EntityType<? extends HostileEntity> entityType, World world) {
+    public CrawlerEntity(EntityType<? extends HostileEntity> entityType, World world) {
         super(entityType, world);
         this.experiencePoints = 10;
         this.getNavigation().setCanSwim(true);
@@ -121,8 +119,8 @@ public class Crawler extends HostileEntity implements Monster {
     }
 
     @Override
-    public Brain<Crawler> getBrain() {
-        return (Brain<Crawler>) super.getBrain();
+    public Brain<CrawlerEntity> getBrain() {
+        return (Brain<CrawlerEntity>) super.getBrain();
     }
 
     @Override
