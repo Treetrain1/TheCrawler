@@ -3,6 +3,7 @@ package net.frozenblock.crawler.entity;
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Dynamic;
 import net.frozenblock.crawler.entity.ai.CrawlerBrain;
+import net.frozenblock.crawler.registry.RegisterEntities;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.*;
@@ -20,15 +21,20 @@ import net.minecraft.entity.damage.ProjectileDamageSource;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.Monster;
+import net.minecraft.entity.mob.WardenBrain;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.Packet;
+import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.server.network.DebugInfoSender;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.util.Unit;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
@@ -36,6 +42,7 @@ import net.minecraft.world.LocalDifficulty;
 import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
@@ -51,6 +58,19 @@ public class CrawlerEntity extends HostileEntity {
         this.experiencePoints = 10;
         this.getNavigation().setCanSwim(true);
         this.setPathfindingPenalty(PathNodeType.UNPASSABLE_RAIL, 0.0F);
+    }
+
+    @Override
+    public Packet<?> createSpawnPacket() {
+        return new EntitySpawnS2CPacket(this, this.isInPose(EntityPose.EMERGING) ? 1 : 0);
+    }
+
+    @Override
+    public void onSpawnPacket(EntitySpawnS2CPacket packet) {
+        super.onSpawnPacket(packet);
+        if (packet.getEntityData() == 1) {
+            this.setPose(EntityPose.EMERGING);
+        }
     }
 
     @Override
@@ -121,7 +141,7 @@ public class CrawlerEntity extends HostileEntity {
         World crawlerWorld = this.world;
         if (crawlerWorld instanceof ServerWorld serverWorld) {
             if (this.isPersistent() || this.cannotDespawn()) {
-                CrawlerBrain.resetDigCooldown(this);
+                //CrawlerBrain.resetDigCooldown(this);
             }
         }
 
@@ -173,6 +193,22 @@ public class CrawlerEntity extends HostileEntity {
         DebugInfoSender.sendBrainDebugData(this);
     }
 
+    @Contract("null->false")
+    public boolean isValidTarget(@Nullable Entity entity) {
+        if (entity instanceof LivingEntity livingEntity
+                && this.world == entity.world
+                && EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR.test(entity)
+                && !this.isTeammate(entity)
+                && livingEntity.getType() == EntityType.PLAYER
+                && !livingEntity.isInvulnerable()
+                && !livingEntity.isDead()
+                && this.world.getWorldBorder().contains(livingEntity.getBoundingBox())) {
+            return true;
+        }
+
+        return false;
+    }
+
     @Override
     public boolean canImmediatelyDespawn(double distanceSquared) {
         return false;
@@ -181,7 +217,14 @@ public class CrawlerEntity extends HostileEntity {
     @Nullable
     @Override
     public EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData, @Nullable NbtCompound entityNbt) {
-
+        this.getBrain().remember(MemoryModuleType.DIG_COOLDOWN, Unit.INSTANCE, 300L);
+        if (spawnReason != SpawnReason.CHUNK_GENERATION) {
+            this.setPose(EntityPose.EMERGING);
+            this.getBrain().remember(MemoryModuleType.IS_EMERGING, Unit.INSTANCE, WardenBrain.EMERGE_DURATION);
+            this.playSound(SoundEvents.ENTITY_WARDEN_AGITATED, 5.0F, 1.0F);
+            this.playSound(SoundEvents.ENTITY_SHULKER_AMBIENT, 5.0F, 1.0F);
+            this.playSound(SoundEvents.ENTITY_SHULKER_AMBIENT, 5.0F, 0.7F);
+        }
         return super.initialize(world, difficulty, spawnReason, entityData, entityNbt);
     }
 
@@ -199,7 +242,7 @@ public class CrawlerEntity extends HostileEntity {
     @Override
     public boolean damage(DamageSource source, float amount) {
         boolean bl = super.damage(source, amount);
-        if (!this.world.isClient && !this.isAiDisabled()) {
+        if (!this.world.isClient && !this.isAiDisabled() && !this.isDiggingOrEmerging()) {
             Entity entity = source.getAttacker();
             if (this.brain.getOptionalMemory(MemoryModuleType.ATTACK_TARGET).isEmpty()
                 && entity instanceof LivingEntity livingEntity
@@ -239,7 +282,7 @@ public class CrawlerEntity extends HostileEntity {
     @Override
     public void onTrackedDataSet(TrackedData<?> data) {
         if (POSE.equals(data)) {
-            switch(this.getPose()) {
+            switch (this.getPose()) {
                 case EMERGING:
                     this.emergingAnimationState.start(this.age);
                     break;

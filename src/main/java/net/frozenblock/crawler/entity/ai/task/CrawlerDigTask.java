@@ -10,8 +10,6 @@ import net.minecraft.entity.ai.brain.task.Task;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 
-import java.util.Map;
-
 public class CrawlerDigTask<E extends CrawlerEntity> extends Task<E> {
     public CrawlerDigTask(int duration) {
         super(ImmutableMap.of(MemoryModuleType.ATTACK_TARGET, MemoryModuleState.VALUE_ABSENT, MemoryModuleType.WALK_TARGET, MemoryModuleState.VALUE_ABSENT), duration);

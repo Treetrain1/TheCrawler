@@ -3,8 +3,10 @@ package net.frozenblock.crawler.entity.render;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.frozenblock.crawler.entity.CrawlerEntity;
+import net.frozenblock.crawler.entity.render.animations.CrawlerAnimations;
 import net.minecraft.client.model.*;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.entity.animation.WardenAnimations;
 import net.minecraft.client.render.entity.model.EntityModelPartNames;
 import net.minecraft.client.render.entity.model.SinglePartEntityModel;
 import net.minecraft.util.math.MathHelper;
@@ -104,6 +106,8 @@ public class CrawlerModel<T extends CrawlerEntity> extends SinglePartEntityModel
         this.setLimbAngles(f, g);
         this.setHeadAndBodyAngles(h);
         this.setTendrilPitches(crawler, h, k);
+        this.updateAnimation(crawler.diggingAnimationState, CrawlerAnimations.DIGGING, h);
+        this.updateAnimation(crawler.emergingAnimationState, WardenAnimations.EMERGING, h);
     }
 
     private void setHeadAngle(float yaw, float pitch) {
